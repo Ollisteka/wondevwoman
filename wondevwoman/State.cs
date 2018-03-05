@@ -197,6 +197,5 @@ namespace CG.WondevWoman
         {
             scores[player] = newScore;
         }
-
     }
 }

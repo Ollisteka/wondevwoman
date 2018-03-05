@@ -13,6 +13,7 @@ namespace CG.WondevWoman
         }
 
         public string Message { get; set; }
+        public int UnitIndex { get; }
         public ExplainedScore Score { get; set; }
 
         private void Undo(State state)
