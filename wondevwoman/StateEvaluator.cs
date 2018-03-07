@@ -80,9 +80,10 @@ namespace CG.WondevWoman
                 return int.MinValue;
 
             var neighboursHeight = myUnits.Where(x => x.IsNear8To(myLocation)).Sum(state.HeightAt);
-            var malus = 0;
+            var malus = 0.0;
             var freeCells = 0;
             var unit3 = 0;
+            var unit4 = 0;
             for (int i = myLocation.X-1; i <= myLocation.X + 1; i++)
             {
                 for (int j = myLocation.Y - 1; j <= myLocation.Y + 1; j++)
@@ -93,21 +94,28 @@ namespace CG.WondevWoman
                         freeCells++;
                     if (state.HeightAt(i, j) == 3 && state.CanMove(myLocation, new Vec(i, j)))
                         unit3++;
+                    if (state.HeightAt(i, j) == 4)
+                        unit4++;
                 }
             }
 
             var bonus = 0;
             if (freeCells == 0)
                 malus -= 9999;
+            malus -= Math.Pow(unit4, 3) * 3;
             if (state.HeightAt(myLocation) == 3)
                 bonus += 9999;
+
 
 
             //            var score = Math.Pow(myScore, 3) * 115 
             //                        + Math.Pow(averageUnitHeight, 3) * 2 
             //                        + Math.Pow(neighboursHeight, 5) * 3.5 
             //                        + Math.Pow(freeCells, 4) * 4.3 + malus;
-            var score = Math.Pow(myScore, 3) * 5 + Math.Pow(averageUnitHeight, 3) * 2 + Math.Pow(neighboursHeight, 3) * 3.5 + Math.Pow(unit3, 4) * 7
+            var score = Math.Pow(myScore, 3) * 5 
+                        + Math.Pow(averageUnitHeight, 2) * 2
+                        + Math.Pow(neighboursHeight, 2.5) * 3.5 
+                        + Math.Pow(unit3, 4) * 7
                         + malus + bonus;
 
          //   Console.Error.WriteLine($"MyLoc {myLocation} Points {myScore} Average {averageUnitHeight} Neighbour {neighboursHeight} Free {freeCells} SCORE {score}");
@@ -125,13 +133,6 @@ namespace CG.WondevWoman
                    2.5 * (myMoves == 0 ? int.MinValue : myMoves);
         }
 
-//        private ExplainedScore ABC(State state, int playerIndex)
-//        {
-//            var neighbours = state.GetUnits(playerIndex);
-//            var averageUnitHeight = state.GetUnits(playerIndex).Average(state.HeightAt);
-//            return 5.0 * state.GetScore(playerIndex) + 3 * averageUnitHeight + 2.5 * (myMoves == 0 ? int.MinValue : myMoves);
-//
-//        }
         private ExplainedScore CaptureAndHeights(State state, int playerIndex)
         {
             //57% 21
