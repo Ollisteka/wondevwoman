@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 
 namespace CG.WondevWoman
@@ -27,7 +28,9 @@ namespace CG.WondevWoman
         {
             using (action.ApplyTo(state))
             {
-                return evaluator.Evaluate(state, 0);
+                var movedCell = action.UnitIndex;
+                var movedCellLocation = state.GetUnits(0)[action.UnitIndex];
+                return evaluator.Evaluate(state, 0, movedCellLocation);
             }
         }
     }

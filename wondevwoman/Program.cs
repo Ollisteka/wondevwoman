@@ -32,7 +32,6 @@ namespace CG.WondevWoman
                 var actions = reader.ReadActions();
                 EnsureActionsAreSame(state.GetPossibleActions(), actions);
                 var action = ai.GetAction(state, countdown);
-                Console.Error.WriteLine(action.UnitIndex);
                 WriteOutput(action);
                 Console.Error.WriteLine(countdown);
                 fogRevealer.RegisterAction(action);

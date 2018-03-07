@@ -16,9 +16,9 @@ namespace CG.WondevWoman
             var action = new GreedyAi(evaluator).GetAction(state, 100);
             ExplainedScore score = null;
             using (new MoveAndBuildAction(0, Direction.N, Direction.N).ApplyTo(state))
-                score = evaluator.Evaluate(state, 0);
+                score = evaluator.Evaluate(state, 0, state.GetUnits(0)[0]);
             using (action.ApplyTo(state))
-                evaluator.Evaluate(state, 0).Should().BeGreaterOrEqualTo(score);
+                evaluator.Evaluate(state, 0, state.GetUnits(0)[action.UnitIndex]).Should().BeGreaterOrEqualTo(score);
         }
     }
 }
