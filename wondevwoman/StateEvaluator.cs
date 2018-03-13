@@ -6,106 +6,40 @@ namespace CG.WondevWoman
 {
     public class StateEvaluator : IStateEvaluator
     {
+        public static double SCORE_COEF = 1;
+        public static double ACTIONS_COEF = 0.1;
+        public static double VORONOI_COEF = 1;
+
         public ExplainedScore Evaluate(State state, int playerIndex, Vec movedCellLocation)
         {
-//            var myLoc = new List<Vec>
-//            {
-//                state.GetUnits(playerIndex)[0],
-//                state.GetUnits(playerIndex)[1]
-//            };
-//            var hisLoc = new List<Vec>
-//            {
-//                state.GetUnits(1-playerIndex)[0],
-//                state.GetUnits(1-playerIndex)[1]
-//            };
-            //Console.Error.WriteLine($"ME0 {myLoc[0]}  ME1 {myLoc[1]} HE0 {hisLoc[0]}  HE1 {hisLoc[1]}");
-            //var myPlayers = GetPlayersLocations(state, playerIndex).Select(x => new Unit(x, playerIndex));
-           // var hisPlayers = GetPlayersLocations(state, 1 - playerIndex).Select(x => new Unit(x, 1 - playerIndex));
-           // return GetVoronoiAreasCount(state, playerIndex, myPlayers.Concat(hisPlayers).ToList());
-           // return GetDoublecheckedVoronoiScore(state, playerIndex, GetVoronoiAreasValues);
-             return MyPowsMinusHisPows(state, playerIndex, movedCellLocation);
-           // return Agade(state, playerIndex);
+            
+            return GetDoublecheckedVoronoiScore(state, playerIndex, GetVoronoiAreasCount);
         }
 
-        private ExplainedScore MyPowsMinusHisPows(State state, int playerIndex, Vec movedCellLocation)
+        public static ExplainedScore GetDoublecheckedVoronoiScore(State state, int playerIndex,
+            Func<State, int, List<PlayerPiece>, ExplainedScore> getVoronoiScore)
         {
-            //123
-            var myLocations = GetPlayersLocations(state, playerIndex);
-            var hisLocation = GetPlayersLocations(state, 1 - playerIndex);
-            var hisPows = 0.0;
-            foreach (var unit in hisLocation)
-                hisPows += WithPows(state, 1 - playerIndex, unit).Value;
-            var myPows = 0.0;
-            foreach (var unit in myLocations)
-                myPows += WithPows(state, playerIndex, unit).Value;
-            return myPows - hisPows;
-        }
-
-        private ExplainedScore Agade(State state, int playerIndex)
-        {
-            //209
-            var voronoi = GetDoublecheckedVoronoiScore(state, playerIndex, GetVoronoiAreasValues);
-            var scoresDiff = state.GetScore(playerIndex) - state.GetScore(1 - playerIndex);
-            var myNeighbors = GetScoreForNeighbours(state, playerIndex);
-            var hisNeighbours = GetScoreForNeighbours(state, 1 - playerIndex);
-            return 2 * voronoi + scoresDiff + (myNeighbors - hisNeighbours);
-        }
-
-        private static double GetScoreForNeighbours(State state, int playerIndex)
-        {
-            var myNeighbors = 0;
-            foreach (var point in GetPlayersLocations(state, playerIndex))
-            {
-                var passableNeighbours = GetPassableNeighbours(state, point).Count();
-                if (passableNeighbours == 0)
-                    myNeighbors -= 999;
-                else myNeighbors += passableNeighbours;
-            }
-
-            return myNeighbors;
-        }
-
-        public static List<Vec> GetPlayersLocations(State state, int playerIndex)
-        {
-            return new List<Vec>
-            {
-                state.GetUnits(playerIndex)[0],
-                state.GetUnits(playerIndex)[1]
-            }.Where(p => !p.Equals(new Vec(-1, -1))).ToList();
-        }
-
-
-        private List<Unit> GetUnitsList(State state, int playerIndex)
-        {
-            var players = new List<Unit>();
-            foreach (var myUnit in GetPlayersLocations(state, playerIndex))
-                players.Add(new Unit(myUnit, playerIndex));
-            foreach (var hisUnit in GetPlayersLocations(state, 1 - playerIndex))
-                players.Add(new Unit(hisUnit, 1 - playerIndex));
-            return players;
-        }
-
-        private static double GetDoublecheckedVoronoiScore(State state, int playerIndex,
-            Func<State, int, List<Unit>, double> getVoronoiScore)
-        {
-            var myPlayers = GetPlayersLocations(state, playerIndex).Select(x => new Unit(x, playerIndex));
-            var hisPlayers = GetPlayersLocations(state, 1 - playerIndex).Select(x => new Unit(x, 1 - playerIndex));
+            var myPlayers = GetPlayerPieces(state, playerIndex);
+            var hisPlayers = GetPlayerPieces(state, 1 - playerIndex);
             var players = myPlayers.Concat(hisPlayers).ToList();
             var meHis = getVoronoiScore(state, playerIndex, players);
             players.Reverse();
             var hisMe = getVoronoiScore(state, 1 - playerIndex, players);
-            return meHis + hisMe;
+            return new ExplainedScore(meHis.Value - hisMe.Value,
+                $"ME-HIM {meHis.Explanation} HIM-ME {hisMe.Explanation}");
         }
 
-        private double GetVoronoiAreasCount(State state, int playerIndex, List<Unit> players)
+        public static ExplainedScore GetVoronoiAreasCount(State state, int playerIndex, List<PlayerPiece> players)
         {
             var allSigned = AssignOwners(state, players).ToList();
-            var my = allSigned.Count(x => x.Owner == playerIndex);;
-            var his = allSigned.Count(x => x.Owner != playerIndex);
-            return my - his;
+            var myPlayers = players.Count(p => p.PlayerIndex == playerIndex);
+            var hisPlayers = players.Count(p => p.PlayerIndex != playerIndex);
+            var my = allSigned.Count(x => x.Owner == playerIndex) - myPlayers;
+            var his = allSigned.Count(x => x.Owner != playerIndex) - hisPlayers;
+            return new ExplainedScore(my - his, $"P{playerIndex}: {my}  P{1 - playerIndex}: {his}");
         }
 
-        private double GetVoronoiAreasValues(State state, int playerIndex, List<Unit> players)
+        private static ExplainedScore GetVoronoiAreasValues(State state, int playerIndex, List<PlayerPiece> players)
         {
             var allSigned = AssignOwners(state, players).ToList();
             var my = allSigned.Where(x => x.Owner == playerIndex).Sum(x => x.Value);
@@ -113,7 +47,7 @@ namespace CG.WondevWoman
             return my - his;
         }
 
-        public static IEnumerable<OwnedLocation> AssignOwners(State state, List<Unit> players)
+        public static IEnumerable<OwnedLocation> AssignOwners(State state, List<PlayerPiece> players)
         {
             var track = new Dictionary<Vec, OwnedLocation>();
             var queue = new Queue<Vec>();
@@ -138,7 +72,8 @@ namespace CG.WondevWoman
                     if (track.ContainsKey(nextPoint) || !nextPoint.InArea(state.Size) ||
                         !state.CanMove(point, nextPoint)) continue;
                     var distance = track[point].Distance + 1;
-                    var val = EstimatePointValue(state, track[point].Owner, nextPoint) / distance;
+                    var val = state.HeightAt(nextPoint);
+                    //   var val = EvaluteForPoint(state, track[point].Owner, nextPoint).Value / distance;
                     track[nextPoint] = new OwnedLocation(track[point].Owner, nextPoint, val, distance);
                     yield return track[nextPoint];
                     queue.Enqueue(nextPoint);
@@ -152,15 +87,13 @@ namespace CG.WondevWoman
                 yield return point + dir;
         }
 
-        public static IEnumerable<Vec> GetPassableNeighbours(State state, Vec point)
+        public static IEnumerable<Vec> GetPassableNeighbours(State state, Vec initialLocation)
         {
-            return GetIncidentPoints(point).Where(p => p.InArea(state.Size) && state.CanMove(point, p));
+            return GetIncidentPoints(initialLocation)
+                .Where(p => p.InArea(state.Size) && state.CanMove(initialLocation, p));
         }
 
-        private static double EstimatePointValue(State state, int playerIndex, Vec pointLocation)
-        {
-            return WithPows(state, playerIndex, pointLocation).Value;
-        }
+        #region notvoronoi
 
         private static ExplainedScore WithPows(State state, int playerIndex, Vec myLocation)
         {
@@ -168,8 +101,9 @@ namespace CG.WondevWoman
             var bonus = 0.0;
 
             var neigbours = GetIncidentPoints(myLocation).Where(p => p.InArea(state.Size)).ToList();
-            var neighboursHeight = neigbours.Average(state.HeightAt);
-            var allUnitHeight = state.GetUnits(playerIndex).Where(p => p.InArea(state.Size) && state.HeightAt(p) < 4).Average(state.HeightAt);
+            // var neighboursHeight = neigbours.Average(state.HeightAt);
+            var allUnitHeight = state.GetUnits(playerIndex).Where(p => p.InArea(state.Size) && state.HeightAt(p) < 4)
+                .Average(state.HeightAt);
             var unit3 = state.GetUnits(playerIndex).Where(p => p.InArea(state.Size)).Count(p => state.HeightAt(p) == 3);
 
             var freeCells = neigbours.Count(p => state.CanMove(myLocation, p));
@@ -179,10 +113,18 @@ namespace CG.WondevWoman
             var currentHeight = state.HeightAt(myLocation);
             if (currentHeight == 3)
                 bonus += 9999;
-            
-            var score = EvalPow(myScore, 2, 20) + EvalPow(unit3, 2.5, 3.5) + EvalPow(allUnitHeight, 1.7, 1.7) + malus +
+
+            state.ChangeCurrentPlayer();
+            var moves = state.GetPossibleActions().Count;
+            state.ChangeCurrentPlayer();
+            var score = EvalPow(myScore, 2, 20)
+                        + EvalPow(unit3, 2.5, 3.5)
+                        + EvalPow(allUnitHeight, 1.7, 1.7)
+                        //  + EvalPow(neighboursHeight, 1.2, 0.7)
+                        + EvalPow(moves, 1, 23)
+                        + malus +
                         bonus;
-          //  Console.Error.WriteLine($"MyLoc {myLocation} Points {myScore} Neighbour {neigbours.Count} Free {freeCells} SCORE {score}");
+            //Console.Error.WriteLine($"MyLoc {myLocation} Points {myScore} Neighbour {neigbours.Count} Free {freeCells} SCORE {score}");
             return score;
         }
 
@@ -190,41 +132,28 @@ namespace CG.WondevWoman
         {
             return Math.Pow(count, evalSpeed) * factor;
         }
-        private ExplainedScore CaptureAndHeights(State state, int playerIndex, Vec myLocation)
+
+        private ExplainedScore MyPowsMinusHisPows(State state, int playerIndex, Vec movedCellLocation)
         {
-            //57% 21
-            var hisMoves = state.GetPossibleActions();
-            state.ChangeCurrentPlayer();
-            var myMoves = state.GetPossibleActions();
-            state.ChangeCurrentPlayer();
-            var myUnitZeroMoves = myMoves.Count(x => x.UnitIndex == 0);
-            var myUnitOneMoves = myMoves.Count(x => x.UnitIndex == 1);
-            var hisUnitZeroMoves = hisMoves.Count(x => x.UnitIndex == 0);
-            var hisUnitOneMoves = hisMoves.Count(x => x.UnitIndex == 1);
-            var units4 = 0;
-            var units2 = state.GetUnits(playerIndex).Count(unit => state.HeightAt(unit) == 2);
-            for (var i = 0; i < state.Size; i++)
-            for (var j = 0; j < state.Size; j++)
+            //123
+            // var myLocations = GetPlayersLocations(state, playerIndex);
+            var hisLocation = GetPlayersLocations(state, 1 - playerIndex);
+            var hisPows = 0.0;
+            var upper = hisLocation.Count >= 1 ? 1 : 0;
+            for (int i = 0; i < upper; i++)
             {
-                var height = state.HeightAt(i, j);
-                if (height == 4)
-                    units4++;
+                hisPows += WithPows(state, 1 - playerIndex, hisLocation[0]).Value;
             }
 
-            var malus = 0;
-            var bonus = 0;
-            if (myUnitOneMoves == 0 || myUnitZeroMoves == 0)
-                malus -=9999;
-            if (hisUnitOneMoves == 0 || hisUnitZeroMoves == 0 || state.HeightAt(myLocation) == 3)
-                bonus += 9999;
-          
-            return Math.Pow(state.GetScore(playerIndex), 4) * 5
-                   + (myMoves.Count - 3 * hisMoves.Count)
-                   + Math.Pow(units2, 4) * 3
-                   - Math.Pow(units4, 4) * 6 + malus + bonus;
+            var myPows = 0.0;
+            //foreach (var unit in myLocations)
+            myPows += WithPows(state, playerIndex, movedCellLocation).Value;
+            return myPows - hisPows;
         }
 
-        private ExplainedScore TryCaptureEnemy(State state, int playerIndex)
+        #endregion
+
+        public static ExplainedScore TryCaptureEnemy(State state, int playerIndex)
         {
             //53% 26
             var hisMoves = state.GetPossibleActions().Count;
@@ -234,50 +163,37 @@ namespace CG.WondevWoman
             return myMoves - 3 * hisMoves;
         }
 
-        private double ClassifyWalls(State state, Vec myLocation)
+        public static ExplainedScore PractiseEvaluate(State state, int playerIndex)
         {
-            /*hole: cell with height -1 or 4
-wall: cell at least two steps higher
-drop: cell at least two steps lower
-stairs: cell exactly one step higher
-floor: cell at the same height
-goal: cell with height 3, aka a scoring opportunity.*/
+            state.ChangeCurrentPlayer();
+            var actions = state.GetPossibleActions();
+            state.ChangeCurrentPlayer();
+            if (actions.Count == 0 || actions.First() is AcceptDefeatAction)
+                return state.GetScore(playerIndex) * SCORE_COEF;
 
-            var sameFloor = 0;
-            var stairs = 0;
-            var drop = 0;
-            var wall = 0;
-            var goal = 0;
-            var hole = 0;
-            var myHeight = state.HeightAt(myLocation);
-            foreach (var point in GetIncidentPoints(myLocation).Where(p => p.InArea(state.Size)))
+            var myPlayers = GetPlayerPieces(state, playerIndex);
+            var hisPlayers = GetPlayerPieces(state, 1 - playerIndex);
+
+            var players = myPlayers.Concat(hisPlayers).ToList();
+
+            return state.GetScore(playerIndex) * SCORE_COEF
+                   + actions.Count * ACTIONS_COEF
+                   + GetDoublecheckedVoronoiScore(state, playerIndex, GetVoronoiAreasValues).Value *
+                   VORONOI_COEF; //сумма высот
+        }
+
+        public static List<Vec> GetPlayersLocations(State state, int playerIndex)
+        {
+            return new List<Vec>
             {
-                var height = state.HeightAt(point);
-                if (height - myHeight >= 2)
-                    wall++;
-                if (myHeight - height <= 2)
-                    drop++;
-                if (height - myHeight == 1)
-                    stairs++;
-                if (height == myHeight)
-                    sameFloor++;
-                if (height == 3)
-                    goal++;
-                if (height == 4 || height == -1)
-                    hole++;
-            }
+                state.GetUnits(playerIndex)[0],
+                state.GetUnits(playerIndex)[1]
+            }.Where(p => !p.Equals(new Vec(-1, -1))).ToList();
+        }
 
-            var score = 0.0;
-            score -= 9 * hole;
-            //  score -= 9 * wall;
-            score -= 2.5 * drop;
-            score += 3.3 * stairs;
-            score += 5.7 * sameFloor;
-            score += 7.8 * goal;
-
-            if (state.HeightAt(myLocation) == 3)
-                score += 999;
-            return score;
+        public static List<PlayerPiece> GetPlayerPieces(State state, int playerIndex)
+        {
+            return GetPlayersLocations(state, playerIndex).Select(x => new PlayerPiece(x, playerIndex)).ToList();
         }
     }
 }

@@ -26,18 +26,26 @@ namespace CG.WondevWoman
             while (true)
             {
                 var state = reader.ReadState(initData);
-                var countdown = new Countdown(45);
+                var countdown = new Countdown(4500000);
                 fogRevealer.ConsiderStateBeforeMove(state, 20);
                 // ReSharper disable once RedundantAssignment
                 var actions = reader.ReadActions();
                 EnsureActionsAreSame(state.GetPossibleActions(), actions);
                 var action = ai.GetAction(state, countdown);
                 WriteOutput(action);
+                WritePlayer(state);
                 Console.Error.WriteLine(countdown);
+               // Console.Error.WriteLine($"\n\n\n{action.Score.Explanation}");
                 fogRevealer.RegisterAction(action);
                 action.ApplyTo(state);
             }
             // ReSharper disable once FunctionNeverReturns
+        }
+
+        private static void WritePlayer(State state)
+        {
+            var myPlayers = StateEvaluator.GetPlayerPieces(state, 0);
+            var hisPlayers = StateEvaluator.GetPlayerPieces(state, 1);
         }
 
         private static void WriteOutput(IGameAction action)

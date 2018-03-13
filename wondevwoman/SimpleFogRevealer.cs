@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace CG.WondevWoman
 {
-    public class SimpleFogRevealer
+    public class SimpleFogRevealer : IFogRevealer
     {
         private State prevState;
         private IGameAction prevAction;
